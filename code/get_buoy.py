@@ -15,7 +15,7 @@ def download_buoy_data(buoy_id):
     response = requests.get(buoy_data_url)
     print(buoy_id)
     if response.status_code == 200:
-        with open(buoy_id + ".txt", "wb") as file:
+        with open("../data" + buoy_id + ".txt", "wb") as file:
             file.write(response.content)
         print(f"Downloaded data for buoy {buoy_id}")
     else:

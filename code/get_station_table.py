@@ -4,14 +4,9 @@ import os
 import requests
 import csv
 
-
-# Define NOAA NDBC data URL
-data_url = "https://www.ndbc.noaa.gov/data/stations/"
-
-
 # function to download station table
-def download_station_table():
-    station_table_url= os.path.join(data_url,  "station_table.txt")
+def download_station_table(data_url, destination_name):
+    station_table_url= os.path.join(data_url,  destination_name)
     response = requests.get(station_table_url)
     if response.status_code == 200:
         with open("station_table.txt", "wb") as file:
@@ -21,9 +16,9 @@ def download_station_table():
         print(f"Failed to download data for station table")
 
 # Iterate through buoys within the specified range
-download_station_table()
+download_station_table("https://www.ndbc.noaa.gov/data/stations/", "../data/station_table.txt")
  
-file_path = 'station_table.txt'
+file_path = '../data/station_table.txt'
 station_ids = []
  
 delimiter = '|'

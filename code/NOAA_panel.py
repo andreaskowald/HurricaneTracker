@@ -81,11 +81,11 @@ def buoy_panel_app():
             index = 0
         station_id = str(geo.data[('Points', 'I')].iloc[index]['station_id'][0])
         station_data = buoy_dict[station_id]
-        return station_data.hvplot.line(x='timestamp', y=measurement)
+        return station_data.hvplot.line(x='timestamp', y='ATMP')
         #return hv.Scatter(station_data, 'timestamp', 'ATMP').opts(width=900, height=900)
         
-    measurement_select = pn.widgets.Select(options=['ATMP', 'WTMP'], value='ATMP')
-    measurement_select.param.watch(click_callback, 'value')
+    #measurement_select = pn.widgets.Select(options=['ATMP', 'WTMP'], value='ATMP')
+    #measurement_select.param.watch(click_callback, 'value')
 
     buoy = hv.DynamicMap(click_callback, streams=[tap_stream])
     tap_stream.add_subscriber(click_callback)

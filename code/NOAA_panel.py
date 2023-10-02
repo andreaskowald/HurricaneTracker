@@ -2,11 +2,17 @@ import os
 import pandas as pd
 import holoviews as hv
 import panel as pn
+import bokeh
 
+from bokeh.io import curdoc
+from bokeh.server.server import Server
 from holoviews.element import tiles
 from colorcet import bmy
 
-pn.extension('tabulator', template='fast')
+from bokeh.application import Application
+from bokeh.application.handlers.function import FunctionHandler
+
+
 import hvplot.pandas
 import pickle
 
@@ -16,6 +22,8 @@ from holoviews.plotting.links import DataLink
 
 
 @pn.cache
+#load data and define data structures:
+
 def load_stations():
     stations = pd.read_parquet('../data/station_table.parquet')
     return stations
@@ -34,62 +42,59 @@ buoy_dict = {key: value for key, value in buoy_dict.items() if key in stations['
 mask = stations['station_id'].isin(buoy_dict.keys())
 stations = stations[mask]
 
+#define panel application and wrap as a bokeh model
 
+def buoy_panel_app():
 
-instruction = pn.pane.Markdown("""
-This dashboard visualizes all NOAA weather buoys and allows exploring the relationships
-between their local water temperature and variables such as their wind speed, gust speed, and wave height.
-<br><br>Box- or lasso-select on each plot to subselect and hit the 
-"Clear selection" button to reset. See the notebook source code for how to build apps
-like this!""", width=600)
-
-panel_logo = pn.pane.SVG(
-   'https://upload.wikimedia.org/wikipedia/commons/7/79/NOAA_logo.svg',
-    link_url='https://en.m.wikipedia.org/wiki', height=95, align='center'
-)
-
-
-intro = pn.Row(
-    panel_logo,
-    instruction,
-    pn.layout.HSpacer(),
-    sizing_mode='stretch_width'
-)
-
-intro
-
-
-geo = stations.hvplot.points(
-    'longitude', 'latitude', rasterize=False, tools=['hover', 'tap'], tiles='ESRI', cmap=bmy, colorbar=True,
-    xaxis=None, yaxis=False, ylim=(-180, 180), min_height=180, responsive=True, size=40, color='purple', width=800, height=800,
-    hover_cols=['name', 'ttype', 'note', 'station_id']
-).opts('Tiles', alpha=0.8)
-
-tap_stream = Selection1D(source=geo)
-
-
-def click_callback(index):
-    # Find the nearest point to the clicked position
-    #Display the key (label) of the clicked point
+    instruction = pn.pane.Markdown("""
+    This dashboard visualizes all NOAA weather buoys and allows exploring the relationships
+    between their local water temperature and variables such as their wind speed, gust speed, and wave height.
+    <br><br>Box- or lasso-select on each plot to subselect and hit the 
+    "Clear selection" button to reset. See the notebook source code for how to build apps
+    like this!""", width=600)
     
-    #key = clicked_point.data[0]
-    if not index:
-        index = 0
-    station_id = str(geo.data[('Points', 'I')].iloc[index]['station_id'][0])
-    station_data = buoy_dict[station_id]
-    return hv.Scatter(station_data, 'timestamp', 'ATMP').opts(width=900, height=900)
-    #return hv.Scatter([station_data['timestamp'].values.astype(float), station_data['ATMP'].values])
+    panel_logo = pn.pane.SVG(
+       'https://upload.wikimedia.org/wikipedia/commons/7/79/NOAA_logo.svg',
+        link_url='https://en.m.wikipedia.org/wiki', height=95, align='center'
+    )
+
+    intro = pn.Row(
+        panel_logo,
+        instruction,
+        pn.layout.HSpacer(),
+        sizing_mode='stretch_width'
+    )
+    geo = stations.hvplot.points(
+        'longitude', 'latitude', rasterize=False, tools=['hover', 'tap'], tiles='ESRI', cmap=bmy, colorbar=True,
+        xaxis=None, yaxis=False, ylim=(-180, 180), min_height=180, responsive=True, size=40, color='purple', width=800, height=800,
+        hover_cols=['name', 'ttype', 'note', 'station_id']
+    ).opts('Tiles', alpha=0.8)
     
-buoy = hv.DynamicMap(click_callback, streams=[tap_stream])
+    tap_stream = Selection1D(source=geo)
+    
+    def click_callback(index):
+        # Find the nearest point to the clicked position
+        if not index:
+            index = 0
+        station_id = str(geo.data[('Points', 'I')].iloc[index]['station_id'][0])
+        station_data = buoy_dict[station_id]
+        return hv.Scatter(station_data, 'timestamp', 'ATMP').opts(width=900, height=900)
+        #return hv.Scatter([station_data['timestamp'].values.astype(float), station_data['ATMP'].values])
+        
+    buoy = hv.DynamicMap(click_callback, streams=[tap_stream])
+    tap_stream.add_subscriber(click_callback)
+    layout = geo + buoy
 
-tap_stream.add_subscriber(click_callback)
+    return pn.Column("# NOAA Realtime Dashboard", intro, layout, sizing_mode='stretch_both')
 
-layout = geo + buoy
-
-app = pn.Column("# NOAA Realtime Dashboard", intro, layout, sizing_mode='stretch_both')
-app.servable();
-pn.serve(app, port=8080)
-
-while True:
-    pass
-
+app = buoy_panel_app()
+app.servable()
+'''
+server = Server(
+        modify_doc,
+        websocket_origin=["http://ec2-34-212-21-236.us-west-2.compute.amazonaws.com"]
+)
+'''
+#server.start()
+#server.io_loop.add_callback(server.show, "/NOAA_panel")
+#server.io_loop.start()

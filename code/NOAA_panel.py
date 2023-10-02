@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import holoviews as hv
-import panel as pn
+import panel as pn, panel.widgets as pnw
 import bokeh
 
 from bokeh.io import curdoc
@@ -70,17 +70,23 @@ def buoy_panel_app():
         hover_cols=['name', 'ttype', 'note', 'station_id']
     ).opts('Tiles', alpha=0.8)
     
+    station_data = buoy_dict[str(geo.data[('Points', 'I')].iloc[0]['station_id'][0])]
+    station_plot = station_data.hvplot.line(x='timestamp', y='ATMP', responsive=True)
     tap_stream = Selection1D(source=geo)
     
+
     def click_callback(index):
         # Find the nearest point to the clicked position
         if not index:
             index = 0
         station_id = str(geo.data[('Points', 'I')].iloc[index]['station_id'][0])
         station_data = buoy_dict[station_id]
-        return station_data.hvplot.line(x='timestamp', y='ATMP').opts(width=700, height=700)
+        return station_data.hvplot.line(x='timestamp', y=measurement)
         #return hv.Scatter(station_data, 'timestamp', 'ATMP').opts(width=900, height=900)
         
+    measurement_select = pn.widgets.Select(options=['ATMP', 'WTMP'], value='ATMP')
+    measurement_select.param.watch(click_callback, 'value')
+
     buoy = hv.DynamicMap(click_callback, streams=[tap_stream])
     tap_stream.add_subscriber(click_callback)
     layout = geo + buoy
@@ -89,12 +95,3 @@ def buoy_panel_app():
 
 app = buoy_panel_app()
 app.servable()
-'''
-server = Server(
-        modify_doc,
-        websocket_origin=["http://ec2-34-212-21-236.us-west-2.compute.amazonaws.com"]
-)
-'''
-#server.start()
-#server.io_loop.add_callback(server.show, "/NOAA_panel")
-#server.io_loop.start()
